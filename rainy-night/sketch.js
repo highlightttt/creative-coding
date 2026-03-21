@@ -1,6 +1,4 @@
-// 潮湿的雨夜 v5 — 忠实于思花原设计
-// 初始：雾面玻璃 + "Rainy Night 雨夜" 标题
-// 水滴滑过时擦出清晰的信件文字
+// 潮湿的雨夜 v6 — fix: 用 createGraphics 替代 get() 避免 canvas 访问问题
 
 const CONFIG = {
   canvas: { width: 600, height: 800 },
@@ -34,7 +32,7 @@ const LETTER_LINES = [
   "甚至都盼着从尘埃里开出花来，",
   "I believed you understood me—",
   "the joys and sorrows in my words,",
-  "the solitude in my soul's depths.",
+  "the solitude in my soul.",
   "我以为，你是懂我的，",
   "懂我文字里的悲欢，",
   "懂我灵魂深处的孤寂。",
@@ -43,14 +41,8 @@ const LETTER_LINES = [
   "以为就此握住了一生的幸福，",
   "可现实终究是残酷的。",
   "But reality proved cruel.",
-  "your affair with Xiao Zhou,",
-  "my heart became riddled",
-  "with wounds.",
   "我的心便已开始千疮百孔。",
-  "This resolution came after",
-  "a year and a half of deliberation.",
   "随信附上三十万法币，",
-  "Enclosed are 300,000 francs—",
   "算是与你这段感情的终结。",
   "从此以后，你不要来寻我，",
   "Seek me no more;",
@@ -60,7 +52,8 @@ const LETTER_LINES = [
   "— 张爱玲  Eileen Chang",
 ];
 
-let blurImg, clearImg, revealCanvas;
+// 保留为 createGraphics（有 .elt / canvas 属性）
+let blurGfx, clearGfx, revealCanvas;
 let curves = [];
 let fc = 0;
 
@@ -68,99 +61,89 @@ function setup() {
   createCanvas(CONFIG.canvas.width, CONFIG.canvas.height);
   pixelDensity(1);
 
-  // 清晰版：深蓝底 + 大号白色文字
-  let clearGfx = createGraphics(width, height);
-  drawLetterBg(clearGfx, color(25, 55, 150), color(255, 255, 255, 220));
-  clearImg = clearGfx.get();
-  clearGfx.remove();
+  // 清晰版
+  clearGfx = createGraphics(width, height);
+  drawLetterBg(clearGfx, [25, 55, 150], [255, 255, 255, 220]);
 
-  // 模糊版：亮蓝底 + 浅色文字 + 模糊 + 大标题
-  let blurGfx = createGraphics(width, height);
-  drawLetterBg(blurGfx, color(90, 140, 220), color(130, 170, 230, 150));
+  // 模糊版
+  blurGfx = createGraphics(width, height);
+  drawLetterBg(blurGfx, [90, 140, 220], [130, 170, 230, 150]);
   blurGfx.filter(BLUR, 5);
-  // 叠一层淡雾
   blurGfx.fill(100, 150, 220, 40);
   blurGfx.noStroke();
   blurGfx.rect(0, 0, width, height);
-  // 大标题 "Rainy Night 雨夜"
+  // 大标题
   drawTitle(blurGfx);
-  blurImg = blurGfx.get();
-  blurGfx.remove();
 
+  // 蒙版
   revealCanvas = createGraphics(width, height);
   revealCanvas.clear();
 }
 
-function drawLetterBg(pg, bgColor, txtColor) {
-  pg.background(bgColor);
-  pg.fill(txtColor);
+function drawLetterBg(pg, bgCol, txtCol) {
+  pg.background(bgCol[0], bgCol[1], bgCol[2]);
+  pg.fill(txtCol[0], txtCol[1], txtCol[2], txtCol[3] || 255);
   pg.noStroke();
-  pg.textFont("Georgia, 'Noto Serif SC', 'Songti SC', serif");
+  pg.textFont("Georgia");
   pg.textSize(15);
-  pg.textLeading(22);
   pg.textAlign(LEFT, TOP);
 
   let margin = 30;
   let y = margin;
-  let lineIdx = 0;
-
-  // 铺满整个画布，循环文字
+  let idx = 0;
   while (y < height - margin) {
-    let line = LETTER_LINES[lineIdx % LETTER_LINES.length];
-    pg.text(line, margin, y, width - margin * 2);
+    pg.text(LETTER_LINES[idx % LETTER_LINES.length], margin, y);
     y += 22;
-    lineIdx++;
+    idx++;
   }
 }
 
 function drawTitle(pg) {
   pg.push();
-  pg.fill(40, 80, 180, 200);
+  pg.fill(35, 70, 170, 200);
   pg.noStroke();
-
-  // "Rainy"
-  pg.textFont("Georgia, 'Times New Roman', serif");
-  pg.textSize(90);
+  pg.textFont("Georgia");
+  pg.textSize(80);
   pg.textAlign(LEFT, TOP);
-  pg.textStyle(NORMAL);
-  pg.text("R a i n y", 40, 150);
-
-  // "Night"
-  pg.text("N i g h t", 40, 270);
-
-  // "雨 夜"
-  pg.textFont("'Songti SC', 'Noto Serif SC', 'STSong', serif");
-  pg.textSize(120);
-  pg.text("雨  夜", 40, 420);
-
+  pg.text("R a i n y", 35, 160);
+  pg.text("N i g h t", 35, 270);
+  pg.textSize(110);
+  pg.text("雨  夜", 35, 420);
   pg.pop();
 }
 
 function draw() {
-  image(blurImg, 0, 0);
+  // 1. 模糊背景
+  image(blurGfx, 0, 0);
 
+  // 2. 生成雨滴
   fc++;
   if (fc % CONFIG.generator.spawnInterval === 0 && curves.length < CONFIG.generator.maxCurves) {
     curves.push(new RainDrop());
   }
 
+  // 3. 更新雨滴，画到蒙版
   for (let i = curves.length - 1; i >= 0; i--) {
     curves[i].grow();
     curves[i].drawToReveal();
     if (curves[i].done) curves.splice(i, 1);
   }
 
-  // 蒙版合成
-  let ctx = drawingContext;
-  let tmp = document.createElement('canvas');
-  tmp.width = width;
-  tmp.height = height;
-  let tCtx = tmp.getContext('2d');
-  tCtx.drawImage(clearImg.canvas, 0, 0);
-  tCtx.globalCompositeOperation = 'destination-in';
-  tCtx.drawImage(revealCanvas.canvas, 0, 0);
-  ctx.drawImage(tmp, 0, 0);
+  // 4. 蒙版合成 — 用原生 canvas API
+  let mainCtx = drawingContext;
+  let tmpCvs = document.createElement('canvas');
+  tmpCvs.width = width;
+  tmpCvs.height = height;
+  let tmpCtx = tmpCvs.getContext('2d');
+  // 画清晰图
+  tmpCtx.drawImage(clearGfx.elt, 0, 0);
+  // destination-in: 只保留蒙版白色区域
+  tmpCtx.globalCompositeOperation = 'destination-in';
+  tmpCtx.drawImage(revealCanvas.elt, 0, 0);
+  // 叠到主画布
+  mainCtx.drawImage(tmpCvs, 0, 0);
 
+  // 5. 淡雾
   drawFog();
 }
 
