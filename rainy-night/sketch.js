@@ -1,4 +1,5 @@
-// 潮湿的雨夜 v6 — fix: 用 createGraphics 替代 get() 避免 canvas 访问问题
+// 潮湿的雨夜 v7 — 纯 p5.js API，不依赖原生 canvas
+// 用 mask() 实现蒙版效果
 
 const CONFIG = {
   canvas: { width: 600, height: 800 },
@@ -24,13 +25,13 @@ const LETTER_LINES = [
   "彼时唯以小吉故，",
   "不欲增加你的困难。",
   "Once, in your presence,",
-  "I diminished—so low",
+  "I diminished — so low",
   "I sank into dust.",
   "曾经，见了你，",
   "我变得很低很低，",
   "低到尘埃里，",
   "甚至都盼着从尘埃里开出花来，",
-  "I believed you understood me—",
+  "I believed you understood me —",
   "the joys and sorrows in my words,",
   "the solitude in my soul.",
   "我以为，你是懂我的，",
@@ -52,8 +53,7 @@ const LETTER_LINES = [
   "— 张爱玲  Eileen Chang",
 ];
 
-// 保留为 createGraphics（有 .elt / canvas 属性）
-let blurGfx, clearGfx, revealCanvas;
+let blurGfx, clearGfx, maskGfx;
 let curves = [];
 let fc = 0;
 
@@ -61,23 +61,22 @@ function setup() {
   createCanvas(CONFIG.canvas.width, CONFIG.canvas.height);
   pixelDensity(1);
 
-  // 清晰版
+  // 清晰版：深蓝底 + 白色文字
   clearGfx = createGraphics(width, height);
   drawLetterBg(clearGfx, [25, 55, 150], [255, 255, 255, 220]);
 
-  // 模糊版
+  // 模糊版：亮蓝底 + 浅色文字 + blur + 标题
   blurGfx = createGraphics(width, height);
   drawLetterBg(blurGfx, [90, 140, 220], [130, 170, 230, 150]);
   blurGfx.filter(BLUR, 5);
   blurGfx.fill(100, 150, 220, 40);
   blurGfx.noStroke();
   blurGfx.rect(0, 0, width, height);
-  // 大标题
   drawTitle(blurGfx);
 
-  // 蒙版
-  revealCanvas = createGraphics(width, height);
-  revealCanvas.clear();
+  // 蒙版画布
+  maskGfx = createGraphics(width, height);
+  maskGfx.background(0);
 }
 
 function drawLetterBg(pg, bgCol, txtCol) {
@@ -122,26 +121,18 @@ function draw() {
     curves.push(new RainDrop());
   }
 
-  // 3. 更新雨滴，画到蒙版
+  // 3. 更新雨滴，画到蒙版（白色=显示清晰图）
   for (let i = curves.length - 1; i >= 0; i--) {
     curves[i].grow();
-    curves[i].drawToReveal();
+    curves[i].drawToMask();
     if (curves[i].done) curves.splice(i, 1);
   }
 
-  // 4. 蒙版合成 — 用原生 canvas API
-  let mainCtx = drawingContext;
-  let tmpCvs = document.createElement('canvas');
-  tmpCvs.width = width;
-  tmpCvs.height = height;
-  let tmpCtx = tmpCvs.getContext('2d');
-  // 画清晰图
-  tmpCtx.drawImage(clearGfx.elt, 0, 0);
-  // destination-in: 只保留蒙版白色区域
-  tmpCtx.globalCompositeOperation = 'destination-in';
-  tmpCtx.drawImage(revealCanvas.elt, 0, 0);
-  // 叠到主画布
-  mainCtx.drawImage(tmpCvs, 0, 0);
+  // 4. 合成：复制清晰图，用蒙版 mask，叠到主画布
+  let clearCopy = clearGfx.get();
+  let maskCopy = maskGfx.get();
+  clearCopy.mask(maskCopy);
+  image(clearCopy, 0, 0);
 
   // 5. 淡雾
   drawFog();
@@ -176,29 +167,31 @@ class RainDrop {
     this.len += this.speed;
   }
 
-  drawToReveal() {
+  drawToMask() {
     let n = this.points.length;
     if (n < 4) return;
 
-    revealCanvas.stroke(255, 210);
-    revealCanvas.strokeWeight(this.weight);
-    revealCanvas.noFill();
+    // 白色线条 = 显示清晰图的区域
+    maskGfx.stroke(255);
+    maskGfx.strokeWeight(this.weight);
+    maskGfx.noFill();
 
     for (let i = max(0, this.drawnUpTo - 1); i < n - 3; i++) {
-      revealCanvas.beginShape();
-      revealCanvas.curveVertex(this.points[i].x, this.points[i].y);
-      revealCanvas.curveVertex(this.points[i+1].x, this.points[i+1].y);
-      revealCanvas.curveVertex(this.points[i+2].x, this.points[i+2].y);
-      revealCanvas.curveVertex(this.points[i+3].x, this.points[i+3].y);
-      revealCanvas.endShape();
+      maskGfx.beginShape();
+      maskGfx.curveVertex(this.points[i].x, this.points[i].y);
+      maskGfx.curveVertex(this.points[i+1].x, this.points[i+1].y);
+      maskGfx.curveVertex(this.points[i+2].x, this.points[i+2].y);
+      maskGfx.curveVertex(this.points[i+3].x, this.points[i+3].y);
+      maskGfx.endShape();
     }
     this.drawnUpTo = n - 2;
 
+    // 水珠头
     if (this.len < this.maxLen) {
       let last = this.points[n - 1];
-      revealCanvas.noStroke();
-      revealCanvas.fill(255, 220);
-      revealCanvas.ellipse(last.x, last.y, this.weight * 2.5, this.weight * 3);
+      maskGfx.noStroke();
+      maskGfx.fill(255);
+      maskGfx.ellipse(last.x, last.y, this.weight * 2.5, this.weight * 3);
     }
   }
 }
