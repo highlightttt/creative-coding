@@ -1,5 +1,5 @@
-// 潮湿的雨夜 v7 — 纯 p5.js API，不依赖原生 canvas
-// 用 mask() 实现蒙版效果
+// 潮湿的雨夜 v8
+// 用原生 canvas globalCompositeOperation 实现蒙版
 
 const CONFIG = {
   canvas: { width: 600, height: 800 },
@@ -25,13 +25,13 @@ const LETTER_LINES = [
   "彼时唯以小吉故，",
   "不欲增加你的困难。",
   "Once, in your presence,",
-  "I diminished — so low",
+  "I diminished - so low",
   "I sank into dust.",
   "曾经，见了你，",
   "我变得很低很低，",
   "低到尘埃里，",
   "甚至都盼着从尘埃里开出花来，",
-  "I believed you understood me —",
+  "I believed you understood me -",
   "the joys and sorrows in my words,",
   "the solitude in my soul.",
   "我以为，你是懂我的，",
@@ -50,22 +50,22 @@ const LETTER_LINES = [
   "即或写信来，",
   "我亦是不看的了。",
   "I won't read it.",
-  "— 张爱玲  Eileen Chang",
+  "- Zhang Ailing  Eileen Chang",
 ];
 
 let blurGfx, clearGfx, maskGfx;
 let curves = [];
 let fc = 0;
+// 缓存 canvas 引用
+let clearCanvasEl, maskCanvasEl;
 
 function setup() {
   createCanvas(CONFIG.canvas.width, CONFIG.canvas.height);
   pixelDensity(1);
 
-  // 清晰版：深蓝底 + 白色文字
   clearGfx = createGraphics(width, height);
   drawLetterBg(clearGfx, [25, 55, 150], [255, 255, 255, 220]);
 
-  // 模糊版：亮蓝底 + 浅色文字 + blur + 标题
   blurGfx = createGraphics(width, height);
   drawLetterBg(blurGfx, [90, 140, 220], [130, 170, 230, 150]);
   blurGfx.filter(BLUR, 5);
@@ -74,9 +74,23 @@ function setup() {
   blurGfx.rect(0, 0, width, height);
   drawTitle(blurGfx);
 
-  // 蒙版画布
+  // 蒙版：透明底！（clear = alpha 0）
   maskGfx = createGraphics(width, height);
-  maskGfx.background(0);
+  maskGfx.clear(); // 关键：透明，不是 background(0)
+
+  // 获取底层 canvas 元素
+  clearCanvasEl = getCanvasElement(clearGfx);
+  maskCanvasEl = getCanvasElement(maskGfx);
+
+  console.log("Setup complete. clearCanvas:", !!clearCanvasEl, "maskCanvas:", !!maskCanvasEl);
+}
+
+function getCanvasElement(pg) {
+  // p5.js 不同版本 canvas 访问方式不同
+  if (pg.canvas) return pg.canvas;
+  if (pg.elt) return pg.elt;
+  // 最后手段：查找 DOM
+  return pg._renderer && pg._renderer.canvas ? pg._renderer.canvas : null;
 }
 
 function drawLetterBg(pg, bgCol, txtCol) {
@@ -107,7 +121,7 @@ function drawTitle(pg) {
   pg.text("R a i n y", 35, 160);
   pg.text("N i g h t", 35, 270);
   pg.textSize(110);
-  pg.text("雨  夜", 35, 420);
+  pg.text("Yu  Ye", 35, 420);
   pg.pop();
 }
 
@@ -121,24 +135,39 @@ function draw() {
     curves.push(new RainDrop());
   }
 
-  // 3. 更新雨滴，画到蒙版（白色=显示清晰图）
+  // 3. 更新雨滴，画白色到蒙版（透明底上的白色不透明笔触）
   for (let i = curves.length - 1; i >= 0; i--) {
     curves[i].grow();
     curves[i].drawToMask();
     if (curves[i].done) curves.splice(i, 1);
   }
 
-  // 4. 合成：复制清晰图，用蒙版 mask，叠到主画布
-  let clearCopy = clearGfx.get();
-  let maskCopy = maskGfx.get();
-  clearCopy.mask(maskCopy);
-  image(clearCopy, 0, 0);
+  // 4. 蒙版合成
+  if (clearCanvasEl && maskCanvasEl) {
+    // 原生 canvas 方式
+    let tmp = document.createElement("canvas");
+    tmp.width = width;
+    tmp.height = height;
+    let ctx = tmp.getContext("2d");
+    // 先画清晰图
+    ctx.drawImage(clearCanvasEl, 0, 0);
+    // destination-in: 只保留蒙版有像素（alpha>0）的区域
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.drawImage(maskCanvasEl, 0, 0);
+    // 叠到主画布
+    drawingContext.drawImage(tmp, 0, 0);
+  } else {
+    // fallback: p5.js mask
+    let c = clearGfx.get();
+    let m = maskGfx.get();
+    c.mask(m);
+    image(c, 0, 0);
+  }
 
   // 5. 淡雾
   drawFog();
 }
 
-// ======== 雨滴 ========
 class RainDrop {
   constructor() {
     this.x = random(width);
@@ -171,8 +200,8 @@ class RainDrop {
     let n = this.points.length;
     if (n < 4) return;
 
-    // 白色线条 = 显示清晰图的区域
-    maskGfx.stroke(255);
+    // 不透明白色笔触画到透明底蒙版上
+    maskGfx.stroke(255, 255, 255, 255);
     maskGfx.strokeWeight(this.weight);
     maskGfx.noFill();
 
@@ -186,17 +215,15 @@ class RainDrop {
     }
     this.drawnUpTo = n - 2;
 
-    // 水珠头
     if (this.len < this.maxLen) {
       let last = this.points[n - 1];
       maskGfx.noStroke();
-      maskGfx.fill(255);
+      maskGfx.fill(255, 255, 255, 255);
       maskGfx.ellipse(last.x, last.y, this.weight * 2.5, this.weight * 3);
     }
   }
 }
 
-// ======== 雾气 ========
 function drawFog() {
   noStroke();
   for (let i = 0; i < 3; i++) {
