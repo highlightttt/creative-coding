@@ -1,5 +1,6 @@
-// 潮湿的雨夜 v4 — 忠实于思花原设计
-// 背景是张爱玲写给胡兰成的分手信，水滴擦出清晰文字
+// 潮湿的雨夜 v5 — 忠实于思花原设计
+// 初始：雾面玻璃 + "Rainy Night 雨夜" 标题
+// 水滴滑过时擦出清晰的信件文字
 
 const CONFIG = {
   canvas: { width: 600, height: 800 },
@@ -16,8 +17,48 @@ const CONFIG = {
   },
 };
 
-// 张爱玲写给胡兰成的分手信（中英对照）
-const LETTER_TEXT = `兰成：Lan Cheng: 我已经不喜欢你了，I no longer love you, 你是早已经不喜欢我的了。you have long ceased to love me. 这次的决心，我是经过一年半的长时间考虑的，This resolution came after a year and a half of deliberation. 彼时唯以小吉故，不欲增加你的困难。only delaying to avoid adding to your burdens. 曾经，见了你，我变得很低很低，低到尘埃里，Once, in your presence, I diminished—so low I sank into dust. 甚至都盼着从尘埃里开出花来，still vainly hoping flowers might bloom from that dust. 我以为，你是懂我的，I believed you understood me— 懂我文字里的悲欢，the joys and sorrows in my words, 懂我灵魂深处的孤寂，the solitude in my soul's depths. 那时的我，满心期许，Back then, full of hope, 在婚书上写下"愿岁月静好，现世安稳"I wrote on our marriage certificate: "May time flow gently, the world stay tranquil," 以为就此握住了一生的幸福，thinking I'd grasped lifelong happiness. 可现实终究是残酷的，But reality proved cruel. 你与小周的那段情，When you told me unabashedly of your affair with Xiao Zhou, 你毫无顾忌地告知我时，my heart became riddled with wounds. 我的心便已开始千疮百孔。I stifled rage and pain. 我努力压抑心中的怒火与痛苦，trying to understand, to endure, 试图去理解，试图去包容，pouring my turmoil into writing— 将满心的挣扎倾诉于笔端，thus came "Red Rose and White Rose." 于是有了《红玫瑰与白玫瑰》。Yet you remained unrepentant. 但你未曾悔过，你经常不归家。fleeing to Wenzhou, 在那已温州时，you took up with Fan Xiumei. 你与范秀美断混在一起。I traveled miles to find you, 我千里迢迢去寻你，only to meet your scorn. 换来的却是你的冷漠与训斥。That moment revealed our irreversible end. 那一刻，我终于明白，我们之间再也回不去了。For eighteen months I revisited memories, 这一年半的时间里，我不断地回忆，不断地思索，seeking reasons to persist—试图从过往的点滴里找到坚持下去的理由，all in vain. 可终究是徒劳。No more self-deception; 如今，我不想再自欺欺人，no more drowning in this abyss. 也不想再让自己沉没在这痛苦的深渊中无法自拔。Enclosed are 300,000 francs— 随信附上三十万法币，my earnings from two screenplays— 这是我写两部电影剧本所得的稿酬，our relationship's final settlement. 算是与你这段感情的终结。Seek me no more; 从此以后，你不要来寻我，should you write, 即或写信来，I won't read it. 我亦是不看的了。-张爱玲 -Eileen Chang`;
+const LETTER_LINES = [
+  "兰成：",
+  "我已经不喜欢你了，",
+  "你是早已经不喜欢我的了。",
+  "这次的决心，",
+  "我是经过一年半的长时间考虑的，",
+  "彼时唯以小吉故，",
+  "不欲增加你的困难。",
+  "Once, in your presence,",
+  "I diminished—so low",
+  "I sank into dust.",
+  "曾经，见了你，",
+  "我变得很低很低，",
+  "低到尘埃里，",
+  "甚至都盼着从尘埃里开出花来，",
+  "I believed you understood me—",
+  "the joys and sorrows in my words,",
+  "the solitude in my soul's depths.",
+  "我以为，你是懂我的，",
+  "懂我文字里的悲欢，",
+  "懂我灵魂深处的孤寂。",
+  "在婚书上写下",
+  ""愿岁月静好，现世安稳"",
+  "以为就此握住了一生的幸福，",
+  "可现实终究是残酷的。",
+  "But reality proved cruel.",
+  "your affair with Xiao Zhou,",
+  "my heart became riddled",
+  "with wounds.",
+  "我的心便已开始千疮百孔。",
+  "This resolution came after",
+  "a year and a half of deliberation.",
+  "随信附上三十万法币，",
+  "Enclosed are 300,000 francs—",
+  "算是与你这段感情的终结。",
+  "从此以后，你不要来寻我，",
+  "Seek me no more;",
+  "即或写信来，",
+  "我亦是不看的了。",
+  "I won't read it.",
+  "— 张爱玲  Eileen Chang",
+];
 
 let blurImg, clearImg, revealCanvas;
 let curves = [];
@@ -27,78 +68,72 @@ function setup() {
   createCanvas(CONFIG.canvas.width, CONFIG.canvas.height);
   pixelDensity(1);
 
-  // 清晰版：深蓝底 + 白色文字
-  clearImg = createLetterImage(color(20, 50, 140), color(255, 255, 255, 230), false);
+  // 清晰版：深蓝底 + 大号白色文字
+  let clearGfx = createGraphics(width, height);
+  drawLetterBg(clearGfx, color(25, 55, 150), color(255, 255, 255, 220));
+  clearImg = clearGfx.get();
+  clearGfx.remove();
 
-  // 模糊版：浅蓝底 + 浅色文字，然后模糊
-  blurImg = createLetterImage(color(60, 100, 180), color(180, 200, 240, 180), true);
+  // 模糊版：亮蓝底 + 浅色文字 + 模糊 + 大标题
+  let blurGfx = createGraphics(width, height);
+  drawLetterBg(blurGfx, color(90, 140, 220), color(130, 170, 230, 150));
+  blurGfx.filter(BLUR, 5);
+  // 叠一层淡雾
+  blurGfx.fill(100, 150, 220, 40);
+  blurGfx.noStroke();
+  blurGfx.rect(0, 0, width, height);
+  // 大标题 "Rainy Night 雨夜"
+  drawTitle(blurGfx);
+  blurImg = blurGfx.get();
+  blurGfx.remove();
 
   revealCanvas = createGraphics(width, height);
   revealCanvas.clear();
 }
 
-function createLetterImage(bgColor, textColor, doBlur) {
-  let pg = createGraphics(width, height);
+function drawLetterBg(pg, bgColor, txtColor) {
   pg.background(bgColor);
-
-  pg.fill(textColor);
+  pg.fill(txtColor);
   pg.noStroke();
-  pg.textFont("serif");
-  pg.textSize(11);
-  pg.textLeading(15);
+  pg.textFont("Georgia, 'Noto Serif SC', 'Songti SC', serif");
+  pg.textSize(15);
+  pg.textLeading(22);
   pg.textAlign(LEFT, TOP);
 
-  // 铺满整个画布的文字
-  let margin = 25;
-  let textWidth = width - margin * 2;
+  let margin = 30;
   let y = margin;
-  let words = LETTER_TEXT.split(/\s+/);
-  let line = '';
+  let lineIdx = 0;
 
-  for (let word of words) {
-    let testLine = line + (line ? ' ' : '') + word;
-    if (pg.textWidth(testLine) > textWidth && line) {
-      pg.text(line, margin, y);
-      y += 15;
-      line = word;
-      if (y > height - margin) {
-        y = margin; // 循环铺满
-      }
-    } else {
-      line = testLine;
-    }
-  }
-  if (line) pg.text(line, margin, y);
-
-  // 如果文字没铺满，重复铺
-  y += 15;
+  // 铺满整个画布，循环文字
   while (y < height - margin) {
-    let wordsAgain = LETTER_TEXT.split(/\s+/);
-    for (let word of wordsAgain) {
-      let testLine = line + (line ? ' ' : '') + word;
-      if (pg.textWidth(testLine) > textWidth && line) {
-        pg.text(line, margin, y);
-        y += 15;
-        line = word;
-        if (y > height - margin) break;
-      } else {
-        line = testLine;
-      }
-    }
-    if (y > height - margin) break;
+    let line = LETTER_LINES[lineIdx % LETTER_LINES.length];
+    pg.text(line, margin, y, width - margin * 2);
+    y += 22;
+    lineIdx++;
   }
+}
 
-  if (doBlur) {
-    pg.filter(BLUR, 4);
-    // 再叠一层淡雾
-    pg.fill(80, 120, 180, 50);
-    pg.noStroke();
-    pg.rect(0, 0, width, height);
-  }
+function drawTitle(pg) {
+  pg.push();
+  pg.fill(40, 80, 180, 200);
+  pg.noStroke();
 
-  let img = pg.get();
-  pg.remove();
-  return img;
+  // "Rainy"
+  pg.textFont("Georgia, 'Times New Roman', serif");
+  pg.textSize(90);
+  pg.textAlign(LEFT, TOP);
+  pg.textStyle(NORMAL);
+  pg.text("R a i n y", 40, 150);
+
+  // "Night"
+  pg.text("N i g h t", 40, 270);
+
+  // "雨 夜"
+  pg.textFont("'Songti SC', 'Noto Serif SC', 'STSong', serif");
+  pg.textSize(120);
+  pg.text("雨  夜", 40, 420);
+
+  pg.pop();
 }
 
 function draw() {
@@ -115,7 +150,7 @@ function draw() {
     if (curves[i].done) curves.splice(i, 1);
   }
 
-  // 蒙版合成：清晰文字只在水痕处显示
+  // 蒙版合成
   let ctx = drawingContext;
   let tmp = document.createElement('canvas');
   tmp.width = width;
@@ -129,7 +164,7 @@ function draw() {
   drawFog();
 }
 
-// ======== 雨滴 curveVertex ========
+// ======== 雨滴 ========
 class RainDrop {
   constructor() {
     this.x = random(width);
@@ -176,7 +211,6 @@ class RainDrop {
     }
     this.drawnUpTo = n - 2;
 
-    // 水珠头
     if (this.len < this.maxLen) {
       let last = this.points[n - 1];
       revealCanvas.noStroke();
@@ -191,7 +225,7 @@ function drawFog() {
   noStroke();
   for (let i = 0; i < 3; i++) {
     let fy = noise(frameCount * 0.001 + i * 80) * height;
-    fill(100, 140, 200, 4 + sin(frameCount * 0.005 + i) * 2);
+    fill(120, 160, 220, 4 + sin(frameCount * 0.005 + i) * 2);
     ellipse(width / 2, fy, width * 2, 250);
   }
 }
