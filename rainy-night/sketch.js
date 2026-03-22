@@ -61,11 +61,21 @@ const LETTER_LINES = [
 let bgCanvas, fgCanvas, maskCanvas;
 let curves = [];
 let fc = 0;
+let ready = false;
 
 function setup() {
   createCanvas(CONFIG.canvas.width, CONFIG.canvas.height);
   pixelDensity(1);
+  background(30, 90, 220);
 
+  // 等字体加载完再初始化
+  document.fonts.ready.then(() => {
+    initLayers();
+    ready = true;
+  });
+}
+
+function initLayers() {
   // 高饱和蓝色
   let baseColor = [30, 90, 220];
   let textColor = [150, 190, 255, 200];
@@ -93,7 +103,7 @@ function drawDenseText(pg, bgCol, txtCol) {
   pg.background(bgCol[0], bgCol[1], bgCol[2]);
   pg.fill(txtCol[0], txtCol[1], txtCol[2], txtCol[3] || 255);
   pg.noStroke();
-  pg.textFont("'Songti SC', Georgia, 'Noto Serif SC', 'STSong', serif");
+  pg.textFont("'Noto Serif SC', 'Songti SC', Georgia, serif");
   pg.textSize(14);
   pg.textAlign(LEFT, TOP);
 
@@ -112,20 +122,21 @@ function drawTitle(pg) {
   pg.push();
   pg.fill(40, 80, 200, 160);
   pg.noStroke();
-  pg.textFont("Georgia, 'Times New Roman', serif");
+  pg.textFont("'Cormorant Garamond', Georgia, serif");
   pg.textAlign(LEFT, TOP);
   pg.textStyle(ITALIC);
   pg.textSize(85);
   pg.text("Rainy", 30, 160);
   pg.text("Night", 30, 280);
   pg.textStyle(NORMAL);
-  pg.textFont("'Songti SC', 'Noto Serif SC', 'STSong', serif");
+  pg.textFont("'Noto Serif SC', 'Songti SC', serif");
   pg.textSize(110);
   pg.text("雨  夜", 30, 430);
   pg.pop();
 }
 
 function draw() {
+  if (!ready) return;
   image(bgCanvas, 0, 0);
 
   fc++;
