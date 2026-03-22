@@ -65,7 +65,7 @@ let ready = false;
 
 function setup() {
   createCanvas(CONFIG.canvas.width, CONFIG.canvas.height);
-  pixelDensity(1);
+  pixelDensity(displayDensity());
   background(30, 90, 220);
 
   // 等字体加载完再初始化
