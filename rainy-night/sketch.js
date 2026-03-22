@@ -1,6 +1,7 @@
-// 潮湿的雨夜 v10 — 按作者最终参数
-// 关键：曲线本身不可见，只是透明蒙版，露出清晰层
-// 两层图的差异要微妙（模糊vs清晰），不是深蓝vs浅蓝
+// 潮湿的雨夜 v11
+// 1. 文字铺满整个背景（多列密排）
+// 2. 水滴边缘不平滑：noise调制粗细 + 微小分支
+// 3. 更高饱和度的蓝色
 
 const CONFIG = {
   canvas: { width: 600, height: 800 },
@@ -10,6 +11,9 @@ const CONFIG = {
     xDriftOptions: [-1, 1],
     maxLengthRange: [600, 1000],
     weightRange: [3, 4],
+    // 边缘粗糙度
+    roughness: 0.15,       // noise频率控制粗细变化
+    roughnessAmp: 2.5,     // 粗细波动幅度(px)
   },
   generator: {
     spawnInterval: 60,
@@ -29,11 +33,11 @@ const LETTER_LINES = [
   "I diminished - so low",
   "I sank into dust.",
   "曾经，见了你，",
-  "我变得很低很低，",
-  "低到尘埃里，",
+  "我变得很低很低，低到尘埃里，",
   "甚至都盼着从尘埃里开出花来，",
   "I believed you understood me -",
-  "the joys and sorrows in my words,",
+  "the joys and sorrows",
+  "in my words,",
   "the solitude in my soul.",
   "我以为，你是懂我的，",
   "懂我文字里的悲欢，",
@@ -62,92 +66,94 @@ function setup() {
   createCanvas(CONFIG.canvas.width, CONFIG.canvas.height);
   pixelDensity(1);
 
-  // 两层用相同的底色和文字，区别只在于模糊程度
-  let baseColor = [45, 80, 160]; // 统一蓝色底
-  let textColor = [220, 230, 245]; // 浅色文字
+  // 高饱和蓝色
+  let baseColor = [30, 90, 220];
+  let textColor = [150, 190, 255, 200];
 
-  // 前景（清晰版）- 被蒙版揭示
+  // 前景（清晰）
   fgCanvas = createGraphics(width, height);
-  drawLetterPage(fgCanvas, baseColor, textColor, 16, 24);
+  drawDenseText(fgCanvas, baseColor, [220, 235, 255, 240]);
 
-  // 背景（模糊版）- 默认显示
+  // 背景（模糊）
   bgCanvas = createGraphics(width, height);
-  drawLetterPage(bgCanvas, baseColor, textColor, 16, 24);
+  drawDenseText(bgCanvas, baseColor, textColor);
   bgCanvas.filter(BLUR, 6);
-  // 轻微雾气叠加
-  bgCanvas.fill(80, 120, 180, 50);
+  bgCanvas.fill(50, 100, 210, 40);
   bgCanvas.noStroke();
   bgCanvas.rect(0, 0, width, height);
-  // 标题
   drawTitle(bgCanvas);
 
-  // 蒙版：透明底
+  // 蒙版
   maskCanvas = createGraphics(width, height);
   maskCanvas.clear();
 }
 
-function drawLetterPage(pg, bgCol, txtCol, fontSize, leading) {
+// 文字铺满整个画布 — 多列、密排
+function drawDenseText(pg, bgCol, txtCol) {
   pg.background(bgCol[0], bgCol[1], bgCol[2]);
-  pg.fill(txtCol[0], txtCol[1], txtCol[2]);
+  pg.fill(txtCol[0], txtCol[1], txtCol[2], txtCol[3] || 255);
   pg.noStroke();
-  pg.textFont("Georgia, 'Songti SC', serif");
-  pg.textSize(fontSize);
+  pg.textFont("'Songti SC', Georgia, 'Noto Serif SC', 'STSong', serif");
+  pg.textSize(13);
   pg.textAlign(LEFT, TOP);
 
-  let margin = 35;
-  let y = margin;
-  let idx = 0;
-  while (y < height - margin) {
-    pg.text(LETTER_LINES[idx % LETTER_LINES.length], margin, y);
-    y += leading;
-    idx++;
+  let cols = 3;
+  let colW = (width - 20) / cols;
+  let margin = 10;
+  let leading = 18;
+
+  for (let c = 0; c < cols; c++) {
+    let x = margin + c * colW;
+    let y = margin + random(-5, 5); // 轻微错位
+    let idx = floor(random(LETTER_LINES.length)); // 每列起始不同
+    while (y < height - margin) {
+      pg.text(LETTER_LINES[idx % LETTER_LINES.length], x, y, colW - 8);
+      y += leading;
+      idx++;
+    }
   }
 }
 
 function drawTitle(pg) {
   pg.push();
-  pg.fill(60, 95, 180, 180);
+  pg.fill(40, 80, 200, 160);
   pg.noStroke();
-  pg.textFont("Georgia, 'Songti SC', serif");
+  pg.textFont("Georgia, 'Times New Roman', serif");
   pg.textAlign(LEFT, TOP);
-  pg.textSize(80);
-  pg.text("Rainy", 35, 180);
-  pg.text("Night", 35, 290);
-  pg.textSize(100);
-  pg.text("雨  夜", 35, 430);
+  pg.textStyle(ITALIC);
+  pg.textSize(85);
+  pg.text("Rainy", 30, 160);
+  pg.text("Night", 30, 280);
+  pg.textStyle(NORMAL);
+  pg.textFont("'Songti SC', 'Noto Serif SC', 'STSong', serif");
+  pg.textSize(110);
+  pg.text("雨  夜", 30, 430);
   pg.pop();
 }
 
 function draw() {
-  // 1. 背景（模糊）
   image(bgCanvas, 0, 0);
 
-  // 2. 新雨滴
   fc++;
   if (fc % CONFIG.generator.spawnInterval === 0 && curves.length < CONFIG.generator.maxCurves) {
     curves.push(new RainCurve());
   }
 
-  // 3. 生长 + 画蒙版
   for (let i = curves.length - 1; i >= 0; i--) {
     curves[i].grow();
     curves[i].drawToMask();
     if (curves[i].done) curves.splice(i, 1);
   }
 
-  // 4. 合成：用 canvas composite 把清晰图通过蒙版叠上
+  // 合成
   let mainCtx = drawingContext;
   let tmpCvs = document.createElement("canvas");
   tmpCvs.width = width;
   tmpCvs.height = height;
   let tmpCtx = tmpCvs.getContext("2d");
-
-  // 先画蒙版（有alpha的区域）
   tmpCtx.drawImage(maskCanvas.canvas || maskCanvas.elt, 0, 0);
-  // source-in: 只保留蒙版有像素的地方，用清晰图填充
   tmpCtx.globalCompositeOperation = "source-in";
   tmpCtx.drawImage(fgCanvas.canvas || fgCanvas.elt, 0, 0);
-  // 叠到主画布
   mainCtx.drawImage(tmpCvs, 0, 0);
 }
 
@@ -158,10 +164,11 @@ class RainCurve {
     this.points = [createVector(this.x, this.y)];
     this.speed = random(CONFIG.curve.growthSpeedRange[0], CONFIG.curve.growthSpeedRange[1]);
     this.maxLen = random(CONFIG.curve.maxLengthRange[0], CONFIG.curve.maxLengthRange[1]);
-    this.weight = random(CONFIG.curve.weightRange[0], CONFIG.curve.weightRange[1]);
+    this.baseWeight = random(CONFIG.curve.weightRange[0], CONFIG.curve.weightRange[1]);
     this.len = 0;
     this.done = false;
     this.nOff = random(1000);
+    this.wOff = random(5000); // 粗细noise偏移
     this.life = 0;
     this.drawnUpTo = 0;
   }
@@ -184,11 +191,20 @@ class RainCurve {
     if (n < 4) return;
 
     let pg = maskCanvas;
-    pg.stroke(255);
-    pg.strokeWeight(this.weight);
-    pg.noFill();
 
+    // 逐段画，每段粗细用 noise 调制 → 边缘不平滑
     for (let i = max(0, this.drawnUpTo - 1); i < n - 3; i++) {
+      let t = i / n;
+      let wNoise = noise(this.wOff + i * CONFIG.curve.roughness);
+      let w = this.baseWeight + (wNoise - 0.5) * 2 * CONFIG.curve.roughnessAmp;
+      w = max(1, w);
+
+      // alpha也微变 → 有些段更淡
+      let a = 200 + (wNoise - 0.5) * 100;
+
+      pg.stroke(255, a);
+      pg.strokeWeight(w);
+      pg.noFill();
       pg.beginShape();
       pg.curveVertex(this.points[i].x, this.points[i].y);
       pg.curveVertex(this.points[i+1].x, this.points[i+1].y);
@@ -198,12 +214,12 @@ class RainCurve {
     }
     this.drawnUpTo = n - 2;
 
-    // 水珠
+    // 水珠头
     if (this.len < this.maxLen) {
       let last = this.points[n - 1];
       pg.noStroke();
-      pg.fill(255);
-      pg.ellipse(last.x, last.y, this.weight * 2, this.weight * 2.5);
+      pg.fill(255, 230);
+      pg.ellipse(last.x, last.y, this.baseWeight * 2, this.baseWeight * 2.5);
     }
   }
 }
