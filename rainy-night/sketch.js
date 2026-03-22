@@ -77,8 +77,8 @@ function setup() {
   // 背景（模糊）
   bgCanvas = createGraphics(width, height);
   drawDenseText(bgCanvas, baseColor, textColor);
-  bgCanvas.filter(BLUR, 6);
-  bgCanvas.fill(50, 100, 210, 40);
+  bgCanvas.filter(BLUR, 2);
+  bgCanvas.fill(50, 100, 210, 30);
   bgCanvas.noStroke();
   bgCanvas.rect(0, 0, width, height);
   drawTitle(bgCanvas);
@@ -88,29 +88,23 @@ function setup() {
   maskCanvas.clear();
 }
 
-// 文字铺满整个画布 — 多列、密排
+// 文字铺满整个画布 — 单列整齐排布
 function drawDenseText(pg, bgCol, txtCol) {
   pg.background(bgCol[0], bgCol[1], bgCol[2]);
   pg.fill(txtCol[0], txtCol[1], txtCol[2], txtCol[3] || 255);
   pg.noStroke();
   pg.textFont("'Songti SC', Georgia, 'Noto Serif SC', 'STSong', serif");
-  pg.textSize(13);
+  pg.textSize(14);
   pg.textAlign(LEFT, TOP);
 
-  let cols = 3;
-  let colW = (width - 20) / cols;
-  let margin = 10;
-  let leading = 18;
-
-  for (let c = 0; c < cols; c++) {
-    let x = margin + c * colW;
-    let y = margin + random(-5, 5); // 轻微错位
-    let idx = floor(random(LETTER_LINES.length)); // 每列起始不同
-    while (y < height - margin) {
-      pg.text(LETTER_LINES[idx % LETTER_LINES.length], x, y, colW - 8);
-      y += leading;
-      idx++;
-    }
+  let margin = 30;
+  let leading = 20;
+  let y = margin;
+  let idx = 0;
+  while (y < height - margin) {
+    pg.text(LETTER_LINES[idx % LETTER_LINES.length], margin, y);
+    y += leading;
+    idx++;
   }
 }
 
