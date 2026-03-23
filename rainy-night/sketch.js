@@ -5,12 +5,12 @@ const CONFIG = {
   canvas: { width: 600, height: 800 },
   curve: {
     startYRange: [-20, 0],
-    growthSpeedRange: [1, 3],
-    xDriftOptions: [-1, 1],
+    growthSpeedRange: [2, 5],
+    xDriftOptions: [-0.3, 0.3],
     maxLengthRange: [600, 1000],
     weightRange: [3, 4],
-    roughness: 0.15,
-    roughnessAmp: 2.5,
+    roughness: 0.4,
+    roughnessAmp: 1.2,
   },
   generator: {
     spawnInterval: 60,
@@ -29,7 +29,7 @@ let ready = false;
 function setup() {
   createCanvas(CONFIG.canvas.width, CONFIG.canvas.height);
   pixelDensity(displayDensity());
-  background(20, 70, 210);
+  background(50, 110, 245);
 
   document.fonts.ready.then(() => {
     initLayers();
@@ -38,7 +38,7 @@ function setup() {
 }
 
 function initLayers() {
-  let baseColor = [20, 70, 210];
+  let baseColor = [50, 110, 245];
 
   fgCanvas = createGraphics(width, height);
   drawFlowText(fgCanvas, baseColor, [230, 240, 255, 240]);
@@ -46,7 +46,7 @@ function initLayers() {
   bgCanvas = createGraphics(width, height);
   drawFlowText(bgCanvas, baseColor, [120, 160, 240, 180]);
   bgCanvas.filter(BLUR, 1.8);
-  bgCanvas.fill(30, 80, 200, 10);
+  bgCanvas.fill(50, 110, 245, 5);
   bgCanvas.noStroke();
   bgCanvas.rect(0, 0, width, height);
   drawTitle(bgCanvas);
