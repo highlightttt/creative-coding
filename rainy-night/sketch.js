@@ -45,8 +45,8 @@ function initLayers() {
 
   bgCanvas = createGraphics(width, height);
   drawFlowText(bgCanvas, baseColor, [120, 160, 240, 180]);
-  bgCanvas.filter(BLUR, 1.6);
-  bgCanvas.fill(30, 80, 200, 15);
+  bgCanvas.filter(BLUR, 1.8);
+  bgCanvas.fill(30, 80, 200, 10);
   bgCanvas.noStroke();
   bgCanvas.rect(0, 0, width, height);
   drawTitle(bgCanvas);
