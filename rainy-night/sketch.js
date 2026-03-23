@@ -61,11 +61,11 @@ function drawFlowText(pg, bgCol, txtCol) {
   pg.fill(txtCol[0], txtCol[1], txtCol[2], txtCol[3] || 255);
   pg.noStroke();
   pg.textFont("'Noto Serif SC', 'Songti SC', Georgia, serif");
-  pg.textSize(11);
+  pg.textSize(16);
   pg.textAlign(LEFT, TOP);
 
   let margin = 6;
-  let lineH = 16;
+  let lineH = 24;
   let x = margin;
   let y = margin;
   let maxX = width - margin;
