@@ -5,8 +5,8 @@ const CONFIG = {
   canvas: { width: 600, height: 800 },
   curve: {
     startYRange: [-20, 0],
-    growthSpeedRange: [2, 5],
-    xDriftOptions: [-0.3, 0.3],
+    growthSpeedRange: [1, 3],
+    xDriftOptions: [-1, 1],
     maxLengthRange: [600, 1000],
     weightRange: [3, 4],
     roughness: 0.4,
@@ -60,9 +60,10 @@ function drawFlowText(pg, bgCol, txtCol) {
   pg.background(bgCol[0], bgCol[1], bgCol[2]);
   pg.fill(txtCol[0], txtCol[1], txtCol[2], txtCol[3] || 255);
   pg.noStroke();
-  pg.textFont("'Noto Serif SC', 'Songti SC', Georgia, serif");
+  pg.textFont("'Noto Serif SC', serif");
   pg.textSize(16);
   pg.textAlign(LEFT, TOP);
+  pg.drawingContext.font = "300 16px 'Noto Serif SC', serif";
 
   let margin = 6;
   let lineH = 24;
